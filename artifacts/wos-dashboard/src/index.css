@@ -1,0 +1,148 @@
+@layer theme, base, clerk, components, utilities;
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root, .dark {
+  /* Ice Blue & Steel Grey Ops Center */
+  --background: 220 30% 6%;
+  --foreground: 210 20% 90%;
+  
+  --card: 220 25% 10%;
+  --card-foreground: 210 20% 90%;
+  --card-border: 215 25% 15%;
+
+  --popover: 220 25% 10%;
+  --popover-foreground: 210 20% 90%;
+  --popover-border: 215 25% 15%;
+
+  --primary: 195 85% 55%;
+  --primary-foreground: 220 30% 6%;
+  
+  --secondary: 215 25% 15%;
+  --secondary-foreground: 210 20% 90%;
+  
+  --muted: 215 25% 15%;
+  --muted-foreground: 215 15% 65%;
+  
+  --accent: 215 25% 15%;
+  --accent-foreground: 210 20% 90%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 20% 90%;
+
+  --border: 215 25% 15%;
+  --input: 215 25% 15%;
+  --ring: 195 85% 55%;
+  
+  --sidebar: 220 30% 6%;
+  --sidebar-foreground: 210 20% 90%;
+  --sidebar-border: 215 25% 15%;
+  --sidebar-primary: 195 85% 55%;
+  --sidebar-primary-foreground: 220 30% 6%;
+  --sidebar-accent: 215 25% 15%;
+  --sidebar-accent-foreground: 210 20% 90%;
+  --sidebar-ring: 195 85% 55%;
+
+  --radius: 0.15rem; /* Sharp, military feel */
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground selection:bg-primary/30;
+  }
+  
+  /* Sub-themes for specific troop types */
+  .text-infantry { color: hsl(210 90% 65%); } /* Blue */
+  .text-lancer { color: hsl(150 70% 50%); } /* Green */
+  .text-marksman { color: hsl(30 90% 60%); } /* Orange */
+  
+  .bg-infantry { background-color: hsl(210 90% 65%); }
+  .bg-lancer { background-color: hsl(150 70% 50%); }
+  .bg-marksman { background-color: hsl(30 90% 60%); }
+}
+
+/* Tiptap rich text editor */
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid hsl(var(--primary) / 0.4);
+  padding-left: 1rem;
+  margin-left: 0;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1.5rem 0;
+}
+
+/* Clerk pseudo-states */
+.cl-formFieldInput::placeholder { color: hsl(215 15% 50%); opacity: 1; }
+.cl-formFieldInput:focus { border-color: hsl(195 85% 55%); box-shadow: 0 0 0 1px hsl(195 85% 55% / 0.4); }
