@@ -1,6 +1,6 @@
 # Migration validation and remaining prerequisites
 
-The source implementation and portable Docker image no longer require Replit at runtime. The provided owner backup has now been restored and verified in a separate private migration database and file directory. No independent public host or URL cutover has been selected. This is not a completed public production migration.
+The source implementation and portable Docker image no longer require Replit at runtime. The provided owner backup has now been restored and verified in a separate private migration database and file directory. Free hosting only is authorized; a free Sandbox account is being checked before any deployment. No public URL cutover has occurred. This is not a completed public production migration.
 
 ## Implemented
 
@@ -16,7 +16,7 @@ The source implementation and portable Docker image no longer require Replit at 
 
 - Frozen-lockfile dependency installation succeeded after lockfile updates.
 - Complete type checking and all builds passed, including a clean Docker build using the provided session CA without disabling TLS verification.
-- API: 8 test files, **85 tests passed**. Frontend: 2 files, **3 tests passed**.
+- API: 9 test files, **89 tests passed**. Frontend: 2 files, **3 tests passed**.
 - Docker runtime health returned 200. Anonymous auth/access, private data and file routes returned 401 with private/no-store. SPA root and a deep link returned the compiled entry. Unknown API paths were not served the SPA.
 - A private file persisted across a container restart; only that synthetic fixture was deleted afterward.
 - A synthetic local database dump restored into a separate new test database with identical content fingerprints across all 9 public tables. No original production database was accessed.
@@ -37,3 +37,9 @@ The source implementation and portable Docker image no longer require Replit at 
 The backup transfer and isolated restore are complete. Select hosting within the owner's budget, deploy the prepared app and verified data to a new private destination, then verify real owner sign-in, data parity, and backups before any URL cutover. Do not delete the Replit source or old data as part of this preparation.
 
 The earlier environment publication predates these migration changes. Updated reusable install/start instructions and a Todoist secret requirement were saved as a new environment draft; review/save and publish that updated cloud snapshot to retain these changes for future tasks. Environment publication does not deploy the web app.
+
+## Free hosting preparation
+
+The optional `OBJECT_STORAGE_BACKEND=postgres` stores existing private uploads and restored icons in the persistent database, avoiding a separate paid app disk. An additive `file_objects` table and transactional, no-overwrite importer are included. The default filesystem backend remains available for portable Compose deployments.
+
+A new copy of the restored owner snapshot passed import and checksum verification for all 118 runtime files (49,414,923 bytes), including all eight gallery references. All nine original table fingerprints remain identical. The original restored database/files and Replit source were unchanged. Free provider database capacity and account eligibility still need confirmation; no paid resource has been created.

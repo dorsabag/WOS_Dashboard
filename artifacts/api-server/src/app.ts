@@ -5,6 +5,7 @@ import { logger } from "./lib/logger";
 import { clerkMiddleware } from "@clerk/express";
 import path from "node:path";
 import { existsSync } from "node:fs";
+import { isIconName, readFileResponse, usesPostgresFiles } from "./lib/postgresFiles";
 
 const app: Express = express();
 
@@ -39,6 +40,13 @@ app.use("/api", router);
 
 // One origin serves both API and SPA; private routes remain behind requireOwner.
 // Restored source assets can live on a volume, outside the public code repository.
+app.get("/icons/:name", async (req, res, next) => {
+  if (!usesPostgresFiles() || !isIconName(req.params.name)) return next();
+  const response = await readFileResponse(`/assets/icons/${req.params.name}`);
+  if (!response) return next();
+  response.headers.forEach((value, key) => res.setHeader(key, value));
+  res.send(Buffer.from(await response.arrayBuffer()));
+});
 if (process.env.ICONS_DIR) app.use("/icons", express.static(process.env.ICONS_DIR));
 const frontendDir = process.env.FRONTEND_DIST_DIR;
 if (frontendDir && existsSync(path.join(frontendDir, "index.html"))) {

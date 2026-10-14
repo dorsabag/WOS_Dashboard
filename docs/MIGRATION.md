@@ -1,6 +1,6 @@
 # Independent WOS Dashboard migration
 
-The application now uses your own Clerk instance, PostgreSQL, a private persistent file volume, and an optional direct Todoist token. Docker Compose is the portable deployment target; no hosting provider has been selected. Cloud environment publication is separate from deploying this application. Existing production data has NOT been migrated yet.
+The application now uses your own Clerk instance, PostgreSQL, a private persistent file volume, and an optional direct Todoist token. Docker Compose remains a portable deployment target. A free hosting deployment is being prepared separately; no paid service is authorized. Cloud environment publication is separate from deploying this application. The supplied production read-replica backup was restored into an isolated local destination and verified; Replit remains unchanged.
 
 ## Preserve and export the original data
 
@@ -74,7 +74,7 @@ docker compose run --rm --no-deps --user root --entrypoint sh \
   -c 'test -z "$(ls -A /data/objects)" && cp -a /import/. /data/objects/ && chown -R 1000:1000 /data/objects'
 ```
 
-Run `docker compose run --rm app node scripts/check-restored-files.mjs` to confirm every `notes_images.object_path` has a corresponding file under `/data/objects` before accepting the restore. No production data restore has been performed by this task.
+Run `docker compose run --rm app node scripts/check-restored-files.mjs` to confirm every `notes_images.object_path` has a corresponding file under `/data/objects` before accepting the restore. The supplied backup has passed these checks in an isolated local destination.
 
 For the prepared independent restore bundle, the native PostgreSQL dump is `database.dump`, uploads are under `objects/`, and restored static images are under `static/icons/`. Copy `static/` into the app's separate `/data/assets` volume as well. Its `/icons` route checks that volume before packaged assets, so old image references stay intact without committing backup images to the code repository. Both the restored icons and the packaged icon catalog remain available. Keep database credentials outside this bundle.
 
@@ -84,4 +84,12 @@ Start with `docker compose up -d app`. The app binds to loopback port 8080; put 
 
 Verify health, sign-in as the verified owner, non-owner rejection, dashboard row counts/values, notes and every uploaded file, deep-link refresh, and Todoist read access. Test edits/completion/deletion only on a disposable restored copy. Take an independent destination backup and prove it restores. After data parity and owner acceptance, switch the public URL/domain; keep Replit read-only as rollback until the new deployment is confirmed. Deleting the old environment is a separate irreversible action requiring approval.
 
-Tests that mock identity do not prove browser login. Replit's old identity sessions do not transfer: the owner signs in to their independent Clerk instance. No target host, original database export, or original files were supplied yet, so live migration/cutover remains blocked on those prerequisites.
+Tests that mock identity do not prove browser login. Replit's old identity sessions do not transfer: the owner signs in to their independent Clerk instance. The supplied database and files are restored and verified locally. Public hosting and browser owner sign-in remain outstanding.
+
+## Optional PostgreSQL file backend for free hosting
+
+Set `OBJECT_STORAGE_BACKEND=postgres` to keep uploads and restored static icons in the same persistent database as the application records. This removes the requirement for a separate persistent app disk. Existing URLs remain unchanged; upload/download authorization still requires the verified owner. The filesystem backend remains the default.
+
+On a **new restored destination**, apply only the additive migration `lib/db/migrations/0012_add_file_objects.sql`, then run `node scripts/import-postgres-files.mjs /private/path/restored`. It imports `objects/uploads` and `static/icons` in one transaction, refuses a nonempty destination table, and verifies every SHA-256 before committing. Do not run schema push against the source or restored owner dataset. The import never deletes or replaces source files.
+
+Run `OBJECT_STORAGE_BACKEND=postgres node scripts/check-restored-files.mjs` to verify gallery references. Include `file_objects` in subsequent native PostgreSQL backups. Free provider storage/backup limits must be checked before deployment; keep the independent backup outside the provider.

@@ -3,6 +3,7 @@ import { lstat, mkdir, readFile, realpath, stat, unlink, writeFile } from "node:
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { usesPostgresFiles, insertFile, hasFile, readFileResponse, removeFile } from "./postgresFiles";
 
 export class ObjectNotFoundError extends Error {
   constructor() { super("Object not found"); this.name = "ObjectNotFoundError"; }
@@ -10,10 +11,15 @@ export class ObjectNotFoundError extends Error {
 
 /** Private files on an operator-owned persistent volume; SQL paths stay unchanged. */
 export class ObjectStorageService {
-  private async resolve(objectPath: string, create = false): Promise<string> {
+  private validate(objectPath: string): void {
     if (!objectPath.startsWith("/objects/")) throw new ObjectNotFoundError();
     const segments = objectPath.slice("/objects/".length).split("/");
     if (!segments.length || segments.some(part => !part || part === "." || part === ".." || /[\\/\0%]/.test(part))) throw new ObjectNotFoundError();
+  }
+
+  private async resolve(objectPath: string, create = false): Promise<string> {
+    this.validate(objectPath);
+    const segments = objectPath.slice("/objects/".length).split("/");
     const configured = process.env.OBJECT_STORAGE_DIR;
     if (!configured || !path.isAbsolute(configured)) throw new Error("OBJECT_STORAGE_DIR must be an absolute persistent directory");
     if (create) await mkdir(configured, { recursive: true, mode: 0o700 });
@@ -44,6 +50,7 @@ export class ObjectStorageService {
 
   async saveUpload(id: string, body: Buffer, contentType: string): Promise<void> {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)) throw new ObjectNotFoundError();
+    if (usesPostgresFiles()) { await insertFile(`/objects/uploads/${id}`, body, contentType); return; }
     const file = await this.resolve(`/objects/uploads/${id}`, true);
     // Exclusive writes prevent replacing existing files or imported data.
     await writeFile(file, body, { flag: "wx", mode: 0o600 });
@@ -52,9 +59,22 @@ export class ObjectStorageService {
     } catch (error) { await unlink(file); throw error; }
   }
 
-  async getObjectEntityFile(objectPath: string): Promise<string> { return this.resolve(objectPath); }
+  async getObjectEntityFile(objectPath: string): Promise<string> {
+    this.validate(objectPath);
+    if (usesPostgresFiles()) {
+      if (!await hasFile(objectPath)) throw new ObjectNotFoundError();
+      return objectPath;
+    }
+    return this.resolve(objectPath);
+  }
 
   async downloadObject(file: string): Promise<Response> {
+    if (usesPostgresFiles()) {
+      this.validate(file);
+      const response = await readFileResponse(file);
+      if (!response) throw new ObjectNotFoundError();
+      return response;
+    }
     const info = await stat(file);
     const metadata = await readFile(file + ".metadata.json", "utf8").then(JSON.parse).catch((error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") return {};
@@ -68,6 +88,11 @@ export class ObjectStorageService {
   }
 
   async deleteObjectEntity(objectPath: string): Promise<void> {
+    this.validate(objectPath);
+    if (usesPostgresFiles()) {
+      if (!await removeFile(objectPath)) throw new ObjectNotFoundError();
+      return;
+    }
     const file = await this.getObjectEntityFile(objectPath);
     await unlink(file);
     await unlink(file + ".metadata.json").catch((error: NodeJS.ErrnoException) => { if (error.code !== "ENOENT") throw error; });

@@ -2,10 +2,12 @@
 import { createRequire } from 'node:module';
 import { realpath, lstat } from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 const require=createRequire(new URL('../lib/db/package.json',import.meta.url));
 const {Client}=require('pg');
-if(!process.env.DATABASE_URL || !process.env.OBJECT_STORAGE_DIR) throw new Error('Set destination DATABASE_URL and OBJECT_STORAGE_DIR securely');
-const root=await realpath(process.env.OBJECT_STORAGE_DIR);
+const postgres=process.env.OBJECT_STORAGE_BACKEND==='postgres';
+if(!process.env.DATABASE_URL || (!postgres&&!process.env.OBJECT_STORAGE_DIR)) throw new Error('Set destination DATABASE_URL and storage configuration securely');
+const root=postgres?null:await realpath(process.env.OBJECT_STORAGE_DIR);
 const db=new Client({connectionString:process.env.DATABASE_URL});
 await db.connect();
 try{
@@ -15,6 +17,11 @@ try{
  for(const row of rows){
   const prefix='/objects/'; const value=row.object_path;
   if(typeof value!=='string'||!value.startsWith(prefix)||value.slice(prefix.length).split('/').some(p=>!p||p==='.'||p==='..'||/[\\\0%]/.test(p))){ missing++;continue; }
+  if(postgres){
+   const stored=(await db.query('SELECT contents,sha256 FROM file_objects WHERE object_path=$1',[value])).rows[0];
+   if(!stored||createHash('sha256').update(stored.contents).digest('hex')!==stored.sha256) missing++;
+   continue;
+  }
   const candidate=path.join(root,value.slice(prefix.length));
   try{const resolved=await realpath(candidate);if(!resolved.startsWith(root+path.sep)||!(await lstat(candidate)).isFile())missing++;}
   catch(e){if(e.code==='ENOENT')missing++;else throw e;}
