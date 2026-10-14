@@ -24,6 +24,7 @@ app.post("/private", (_req, res) => res.json({ authorized: true }));
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv("OWNER_EMAIL", "owner@example.com");
+  vi.stubEnv("APP_ORIGIN", "");
   mocks.getAuth.mockReturnValue({ userId: "test-owner" });
   mocks.getUser.mockResolvedValue({
     emailAddresses: [{ emailAddress: "owner@example.com", verification: { status: "verified" } }],
@@ -73,4 +74,17 @@ describe("Owner authorization", () => {
       .set("Origin", "https://dashboard.example.com")
       .set("X-Forwarded-Host", "dashboard.example.com")).status).toBe(200);
   });
+  it("uses the configured origin instead of a spoofed forwarded host", async () => {
+    vi.stubEnv("APP_ORIGIN", "https://dashboard.example.com");
+    const response = await request(app).post("/private")
+      .set("Origin", "https://attacker.example.com")
+      .set("X-Forwarded-Host", "attacker.example.com");
+    expect(response.status).toBe(403);
+    expect(mocks.getUser).not.toHaveBeenCalled();
+  });
+  it("allows the configured HTTPS origin behind a local upstream", async () => {
+    vi.stubEnv("APP_ORIGIN", "https://dashboard.example.com");
+    expect((await request(app).post("/private").set("Origin", "https://dashboard.example.com")).status).toBe(200);
+  });
+
 });

@@ -1,25 +1,22 @@
 import { Router } from "express";
-import { readdirSync } from "fs";
-import { resolve } from "path";
-import { dirname } from "path";
-import { fileURLToPath } from "url";
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
 
-const __dirname_es = dirname(fileURLToPath(import.meta.url));
-const iconsDir = resolve(__dirname_es, "../../wos-dashboard/public/icons");
 const IMAGE_RE = /\.(png|jpg|jpeg|webp|gif|svg)$/i;
-
 const router = Router();
-
 router.get("/icons", (_req, res) => {
-  try {
-    const files = readdirSync(iconsDir)
-      .filter(f => IMAGE_RE.test(f))
-      .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    res.json(files);
-  } catch (err) {
-    console.error("[icons] failed to read icons directory:", iconsDir, err);
-    res.json([]);
+  // Restored icons override bytes at serving time, while the picker includes
+  // both restored and packaged filenames. Supports root and package dev CWDs.
+  const directories = [
+    process.env.ICONS_DIR,
+    resolve(process.cwd(), "artifacts/wos-dashboard/public/icons"),
+    resolve(process.cwd(), "../wos-dashboard/public/icons"),
+  ].filter((value): value is string => Boolean(value));
+  const files = new Set<string>();
+  for (const directory of new Set(directories)) {
+    try { for (const name of readdirSync(directory)) if (IMAGE_RE.test(name)) files.add(name); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   }
+  res.json([...files].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())));
 });
-
 export default router;

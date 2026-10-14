@@ -1,4 +1,4 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 pnpm install --frozen-lockfile
-pnpm --filter db push
+# Schema changes are explicit operator actions against a verified development target.

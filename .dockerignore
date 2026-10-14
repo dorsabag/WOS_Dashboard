@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.tsbuildinfo
+**/.generated
+.env
+.env.*
+var
+backups
+*.dump
+*.tar.gz

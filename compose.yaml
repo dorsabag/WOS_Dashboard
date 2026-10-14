@@ -1,0 +1,45 @@
+name: wos-dashboard
+services:
+  db:
+    platform: linux/amd64
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_DB: wos_dashboard
+      POSTGRES_USER: wos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a database password in .env}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wos -d wos_dashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+  app:
+    image: wos-dashboard:local
+    platform: linux/amd64
+    build:
+      context: .
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:?Set the Clerk publishable key}
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://wos:${POSTGRES_PASSWORD:?Set a URL-safe database password}@db:5432/wos_dashboard
+      OBJECT_STORAGE_DIR: /data/objects
+      FRONTEND_DIST_DIR: /app/artifacts/wos-dashboard/dist/public
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - objects:/data/objects
+      - assets:/data/assets
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  database:
+  objects:
+  assets:
