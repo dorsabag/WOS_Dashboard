@@ -1,0 +1,1450 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Whiteout Survival Dashboard API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: troops
+    description: Troop data and deployment capacities
+  - name: marches
+    description: Bear trap march configurations
+  - name: items
+    description: Resources and items inventory
+  - name: goals
+    description: Goals and required items
+  - name: Storage
+    description: Object storage upload and serving endpoints.
+  - name: profile
+    description: Whiteout Survival profile export and editing.
+
+paths:
+  /auth/access:
+    get:
+      operationId: getOwnerAccess
+      summary: Confirm the authenticated account is the dashboard owner
+      responses:
+        "200":
+          description: Authorized owner
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authorized]
+                properties:
+                  authorized:
+                    type: boolean
+        "401":
+          description: Sign in required
+        "403":
+          description: Owner access required
+        "503":
+          description: Authorization unavailable or not configured
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /troops:
+    get:
+      operationId: getTroops
+      tags: [troops]
+      summary: Get troop data
+      responses:
+        "200":
+          description: Troop data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Troops"
+    put:
+      operationId: updateTroops
+      tags: [troops]
+      summary: Update troop data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TroopsInput"
+      responses:
+        "200":
+          description: Updated troop data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Troops"
+
+  /troops/summary:
+    get:
+      operationId: getTroopsSummary
+      tags: [troops]
+      summary: Get troop deployment and rally summary
+      responses:
+        "200":
+          description: Troop summary with capacities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TroopsSummary"
+
+  /marches:
+    get:
+      operationId: getMarches
+      tags: [marches]
+      summary: Get all 6 bear trap marches
+      responses:
+        "200":
+          description: List of marches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/March"
+
+  /marches/{id}:
+    put:
+      operationId: updateMarch
+      tags: [marches]
+      summary: Update a march configuration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarchInput"
+      responses:
+        "200":
+          description: Updated march
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/March"
+        "404":
+          description: March not found
+
+  /marches/remaining:
+    get:
+      operationId: getMarchesRemaining
+      tags: [marches]
+      summary: Get remaining troops after all marches
+      responses:
+        "200":
+          description: Remaining troops after all marches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarchesRemaining"
+
+  /items:
+    get:
+      operationId: getItems
+      tags: [items]
+      summary: Get all items grouped by category
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Item"
+    post:
+      operationId: createItem
+      tags: [items]
+      summary: Create a new item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemInput"
+      responses:
+        "201":
+          description: Created item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+
+  /items/{id}:
+    put:
+      operationId: updateItem
+      tags: [items]
+      summary: Update an item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemUpdate"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+        "404":
+          description: Item not found
+    delete:
+      operationId: deleteItem
+      tags: [items]
+      summary: Delete an item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /items/categories:
+    get:
+      operationId: getItemCategories
+      tags: [items]
+      summary: Get all item categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ItemCategory"
+
+  /goals:
+    get:
+      operationId: getGoals
+      tags: [goals]
+      summary: Get all goals
+      responses:
+        "200":
+          description: List of goals with progress
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Goal"
+    post:
+      operationId: createGoal
+      tags: [goals]
+      summary: Create a new goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalInput"
+      responses:
+        "201":
+          description: Created goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+  /goals/{id}:
+    put:
+      operationId: updateGoal
+      tags: [goals]
+      summary: Update a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalUpdate"
+      responses:
+        "200":
+          description: Updated goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        "404":
+          description: Goal not found
+    delete:
+      operationId: deleteGoal
+      tags: [goals]
+      summary: Delete a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /goals/{id}/complete:
+    post:
+      operationId: completeGoal
+      tags: [goals]
+      summary: Mark a goal as complete and deduct required items from inventory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        "404":
+          description: Goal not found
+        "500":
+          description: Failed to complete goal
+
+  /goals/{id}/uncomplete:
+    post:
+      operationId: uncompleteGoal
+      tags: [goals]
+      summary: Mark a goal as not complete and restore inventory amounts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        "404":
+          description: Goal not found
+        "500":
+          description: Failed to uncomplete goal
+
+  /goal-items:
+    post:
+      operationId: createGoalItem
+      tags: [goals]
+      summary: Add an item requirement to a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalItemInput"
+      responses:
+        "201":
+          description: Created goal item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalItem"
+
+  /goal-items/{id}:
+    put:
+      operationId: updateGoalItem
+      tags: [goals]
+      summary: Update a goal item requirement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalItemUpdate"
+      responses:
+        "200":
+          description: Updated goal item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalItem"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteGoalItem
+      tags: [goals]
+      summary: Remove an item requirement from a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      responses:
+        '200':
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Object content streamed.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /notes:
+    get:
+      operationId: getNotes
+      tags: [goals]
+      summary: Get the notes content
+      responses:
+        "200":
+          description: Notes content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+    put:
+      operationId: updateNotes
+      tags: [goals]
+      summary: Update the notes content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteInput"
+      responses:
+        "200":
+          description: Updated notes content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+
+  /notes/images:
+    get:
+      operationId: getNoteImages
+      tags: [goals]
+      summary: Get saved Notes gallery images
+      responses:
+        "200":
+          description: Saved Notes gallery images
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NoteImage"
+    post:
+      operationId: registerNoteImage
+      tags: [goals]
+      summary: Register an uploaded Notes gallery image
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteImageInput"
+      responses:
+        "201":
+          description: Registered Notes gallery image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoteImage"
+        "400":
+          description: Invalid image metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /notes/images/{id}:
+    delete:
+      operationId: deleteNoteImage
+      tags: [goals]
+      summary: Delete a Notes gallery image (DB record + storage object)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Image not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /profile/export:
+    get:
+      operationId: getProfileExport
+      tags: [profile]
+      summary: Get the complete imported profile export
+      responses:
+        "200":
+          description: Profile export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileExport"
+
+  /profile/import/preview:
+    post:
+      operationId: previewProfileImport
+      tags: [profile]
+      summary: Validate and preview a WOS Tools profile CSV without saving it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileImportRequest"
+      responses:
+        "200":
+          description: Import preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileImportPreview"
+        "400":
+          description: Invalid CSV request
+
+  /profile/import:
+    post:
+      operationId: importProfileExport
+      tags: [profile]
+      summary: Replace the saved profile export with a validated WOS Tools CSV
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileImportConfirmation"
+      responses:
+        "200":
+          description: Saved profile export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileExport"
+        "400":
+          description: Invalid CSV export
+        "409":
+          description: Profile changed before this import was confirmed
+
+  /profile/export/field:
+    patch:
+      operationId: updateProfileExportField
+      tags: [profile]
+      summary: Update one value in the imported profile export
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileExportFieldUpdate"
+      responses:
+        "200":
+          description: Updated profile export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileExport"
+        "400":
+          description: Invalid field update
+        "409":
+          description: Field was changed before this update was saved
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [troops]
+      summary: Get a dashboard overview with totals and progress
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Live WoS Atlas power leaderboard (proxied)
+      parameters:
+        - name: stateId
+          in: query
+          required: false
+          description: Filter to a single state (positive integer). Omit for global.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Normalized leaderboard snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardResponse"
+        "400":
+          description: Invalid stateId
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardError"
+        "502":
+          description: Upstream failure or unexpected upstream response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardError"
+        "503":
+          description: Upstream rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardError"
+        "504":
+          description: Upstream timed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardError"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    Troops:
+      type: object
+      properties:
+        id:
+          type: integer
+        infantry:
+          type: integer
+        lancer:
+          type: integer
+        marksman:
+          type: integer
+        heliosInfantry:
+          type: integer
+        heliosLancer:
+          type: integer
+        heliosMarksman:
+          type: integer
+        deploymentCapacity:
+          type: integer
+        deploymentBonus:
+          type: integer
+        cyrilleBonus:
+          type: integer
+        rallyCapacity:
+          type: integer
+        rallyBonus:
+          type: integer
+        updatedAt:
+          type: string
+      required:
+        - id
+        - infantry
+        - lancer
+        - marksman
+        - heliosInfantry
+        - heliosLancer
+        - heliosMarksman
+        - deploymentCapacity
+        - deploymentBonus
+        - cyrilleBonus
+        - rallyCapacity
+        - rallyBonus
+        - updatedAt
+
+    TroopsInput:
+      type: object
+      properties:
+        infantry:
+          type: integer
+        lancer:
+          type: integer
+        marksman:
+          type: integer
+        heliosInfantry:
+          type: integer
+        heliosLancer:
+          type: integer
+        heliosMarksman:
+          type: integer
+        deploymentCapacity:
+          type: integer
+        deploymentBonus:
+          type: integer
+        cyrilleBonus:
+          type: integer
+        rallyCapacity:
+          type: integer
+        rallyBonus:
+          type: integer
+
+    TroopsSummary:
+      type: object
+      properties:
+        infantry:
+          type: integer
+        lancer:
+          type: integer
+        marksman:
+          type: integer
+        total:
+          type: integer
+        deploymentCapacity:
+          type: integer
+        deploymentBonus:
+          type: integer
+        deployCapNoHeroes:
+          type: integer
+        totalDeploymentCap:
+          type: integer
+        deploymentWithCyrille:
+          type: integer
+        rallyCapacity:
+          type: integer
+        rallyBonus:
+          type: integer
+        totalRallyCap:
+          type: integer
+        infantryPct:
+          type: number
+        lancerPct:
+          type: number
+        marksmanPct:
+          type: number
+      required:
+        - infantry
+        - lancer
+        - marksman
+        - total
+        - deploymentCapacity
+        - deploymentBonus
+        - deployCapNoHeroes
+        - totalDeploymentCap
+        - deploymentWithCyrille
+        - rallyCapacity
+        - rallyBonus
+        - totalRallyCap
+        - infantryPct
+        - lancerPct
+        - marksmanPct
+
+    March:
+      type: object
+      properties:
+        id:
+          type: integer
+        marchNumber:
+          type: integer
+        label:
+          type: string
+        infantry:
+          type: integer
+        lancer:
+          type: integer
+        marksman:
+          type: integer
+        capacity:
+          type: integer
+        notes:
+          type: ["string", "null"]
+        icon0:
+          type: ["string", "null"]
+        icon1:
+          type: ["string", "null"]
+        icon2:
+          type: ["string", "null"]
+      required:
+        - id
+        - marchNumber
+        - label
+        - infantry
+        - lancer
+        - marksman
+        - capacity
+
+    MarchInput:
+      type: object
+      properties:
+        label:
+          type: string
+        infantry:
+          type: integer
+        lancer:
+          type: integer
+        marksman:
+          type: integer
+        capacity:
+          type: integer
+        notes:
+          type: string
+        icon0:
+          type: ["string", "null"]
+        icon1:
+          type: ["string", "null"]
+        icon2:
+          type: ["string", "null"]
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/UploadUrlRequest'
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    MarchesRemaining:
+      type: object
+      properties:
+        infantryUsed:
+          type: integer
+        lancerUsed:
+          type: integer
+        marksmanUsed:
+          type: integer
+        infantryRemaining:
+          type: integer
+        lancerRemaining:
+          type: integer
+        marksmanRemaining:
+          type: integer
+        totalUsed:
+          type: integer
+        totalRemaining:
+          type: integer
+      required:
+        - infantryUsed
+        - lancerUsed
+        - marksmanUsed
+        - infantryRemaining
+        - lancerRemaining
+        - marksmanRemaining
+        - totalUsed
+        - totalRemaining
+
+    Item:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+        subcategory:
+          type: ["string", "null"]
+        currentAmount:
+          type: integer
+        unit:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - category
+        - currentAmount
+        - updatedAt
+
+    ItemInput:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        subcategory:
+          type: string
+        currentAmount:
+          type: integer
+        unit:
+          type: string
+        notes:
+          type: string
+        imageUrl:
+          type: string
+      required:
+        - name
+        - category
+        - currentAmount
+
+    ItemUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        subcategory:
+          type: string
+        currentAmount:
+          type: integer
+        unit:
+          type: string
+        notes:
+          type: string
+        imageUrl:
+          type: string
+
+    ItemCategory:
+      type: object
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+      required:
+        - name
+        - count
+
+    GoalCompletionConsumedItem:
+      type: object
+      properties:
+        itemName:
+          type: string
+        amountConsumed:
+          type: integer
+      required:
+        - itemName
+        - amountConsumed
+
+    GoalLastCompletion:
+      type: object
+      properties:
+        completedAt:
+          type: string
+        itemsConsumed:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalCompletionConsumedItem"
+      required:
+        - completedAt
+        - itemsConsumed
+
+    Goal:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: ["string", "null"]
+        isCompleted:
+          type: boolean
+        multiplier:
+          type: integer
+        completionPct:
+          type: number
+        deadlineEventId:
+          type: ["string", "null"]
+        iconUrl1:
+          type: ["string", "null"]
+        iconUrl2:
+          type: ["string", "null"]
+        goalItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalItem"
+        createdAt:
+          type: string
+        lastCompletion:
+          oneOf:
+            - $ref: "#/components/schemas/GoalLastCompletion"
+            - type: "null"
+      required:
+        - id
+        - name
+        - category
+        - isCompleted
+        - multiplier
+        - completionPct
+        - goalItems
+        - createdAt
+
+    GoalInput:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        multiplier:
+          type: integer
+        iconUrl1:
+          type: ["string", "null"]
+        iconUrl2:
+          type: ["string", "null"]
+      required:
+        - name
+        - category
+
+    GoalUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        isCompleted:
+          type: boolean
+        multiplier:
+          type: integer
+        deadlineEventId:
+          type: ["string", "null"]
+        iconUrl1:
+          type: ["string", "null"]
+        iconUrl2:
+          type: ["string", "null"]
+
+    GoalItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        goalId:
+          type: integer
+        itemId:
+          type: ["integer", "null"]
+        itemName:
+          type: string
+        requiredAmount:
+          type: integer
+        currentAmount:
+          type: integer
+        remaining:
+          type: integer
+        isAchieved:
+          type: boolean
+      required:
+        - id
+        - goalId
+        - itemName
+        - requiredAmount
+        - currentAmount
+        - remaining
+        - isAchieved
+
+    GoalItemInput:
+      type: object
+      properties:
+        goalId:
+          type: integer
+        itemId:
+          type: integer
+        itemName:
+          type: string
+        requiredAmount:
+          type: integer
+      required:
+        - goalId
+        - itemName
+        - requiredAmount
+
+    GoalItemUpdate:
+      type: object
+      properties:
+        requiredAmount:
+          type: integer
+        itemName:
+          type: string
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - content
+        - updatedAt
+
+    NoteInput:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+
+    NoteImage:
+      type: object
+      properties:
+        id:
+          type: integer
+        objectPath:
+          type: string
+        fileName:
+          type: string
+        contentType:
+          type: string
+        size:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - objectPath
+        - fileName
+        - contentType
+        - size
+        - createdAt
+
+    NoteImageInput:
+      type: object
+      properties:
+        objectPath:
+          type: string
+          minLength: 1
+        fileName:
+          type: string
+          minLength: 1
+        contentType:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+      required:
+        - objectPath
+        - fileName
+        - contentType
+        - size
+
+    ProfileValue:
+      oneOf:
+        - type: string
+        - type: number
+        - type: boolean
+
+    ProfileExport:
+      type: object
+      properties:
+        version:
+          type: integer
+        values:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ProfileValue"
+        importedAt:
+          type: string
+        sourceName:
+          type: string
+        sourceProfiles:
+          type: array
+          items:
+            type: string
+      required:
+        - version
+        - values
+        - importedAt
+
+    ProfileImportRequest:
+      type: object
+      properties:
+        csv:
+          type: string
+          minLength: 1
+        sourceName:
+          type: string
+        expectedImportedAt:
+          type: string
+      required:
+        - csv
+
+    ProfileImportConfirmation:
+      type: object
+      properties:
+        csv:
+          type: string
+          minLength: 1
+        sourceName:
+          type: string
+        expectedImportedAt:
+          type: string
+      required:
+        - csv
+        - expectedImportedAt
+
+    ProfileImportPreview:
+      type: object
+      properties:
+        importedRows:
+          type: integer
+        groupCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        errors:
+          type: array
+          items:
+            type: string
+        isValid:
+          type: boolean
+      required:
+        - importedRows
+        - groupCounts
+        - errors
+        - isValid
+
+    ProfileExportFieldUpdate:
+      type: object
+      properties:
+        field:
+          type: string
+        value:
+          $ref: "#/components/schemas/ProfileValue"
+        expectedImportedAt:
+          type: string
+      required:
+        - field
+        - value
+        - expectedImportedAt
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalTroops:
+          type: integer
+        deploymentCapacity:
+          type: integer
+        deploymentWithCyrille:
+          type: integer
+        rallyCapacity:
+          type: integer
+        totalItems:
+          type: integer
+        totalGoals:
+          type: integer
+        completedGoals:
+          type: integer
+        overallGoalProgress:
+          type: number
+        marchesConfigured:
+          type: integer
+      required:
+        - totalTroops
+        - deploymentCapacity
+        - deploymentWithCyrille
+        - rallyCapacity
+        - totalItems
+        - totalGoals
+        - completedGoals
+        - overallGoalProgress
+        - marchesConfigured
+
+    LeaderboardScope:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [global, state]
+        stateId:
+          type: ["integer", "null"]
+      required:
+        - type
+        - stateId
+
+    LeaderboardPlayer:
+      type: object
+      properties:
+        rank:
+          type: integer
+        playerId:
+          type: string
+        playerName:
+          type: string
+        stateId:
+          type: ["integer", "null"]
+        power:
+          type: number
+        furnaceLevel:
+          type: integer
+        deltaPercent:
+          type: ["number", "null"]
+      required:
+        - rank
+        - playerId
+        - playerName
+        - stateId
+        - power
+        - furnaceLevel
+        - deltaPercent
+
+    LeaderboardResponse:
+      type: object
+      properties:
+        scope:
+          $ref: "#/components/schemas/LeaderboardScope"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardPlayer"
+        fetchedAt:
+          type: string
+        isStale:
+          type: boolean
+          description: >
+            True when the server is serving a cached snapshot older than the
+            normal TTL because the upstream source is currently rate-limiting
+            requests. The data is valid but may be more than 60 seconds old.
+      required:
+        - scope
+        - rows
+        - fetchedAt
+
+    LeaderboardError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error

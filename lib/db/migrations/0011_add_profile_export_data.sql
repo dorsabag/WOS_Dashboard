@@ -1,0 +1,1 @@
+ALTER TABLE "profile" ADD COLUMN IF NOT EXISTS "export_data" jsonb NOT NULL DEFAULT '{}'::jsonb;
