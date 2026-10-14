@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
-import { getClerkProxyHost } from "./clerkProxyMiddleware";
+import { getRequestHost } from "./requestHost";
 
 export const requireOwner: RequestHandler = async (req, res, next) => {
   res.setHeader("Cache-Control", "private, no-store");
@@ -20,7 +20,9 @@ export const requireOwner: RequestHandler = async (req, res, next) => {
   const origin = req.headers.origin;
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && origin) {
     try {
-      if (new URL(origin).host !== getClerkProxyHost(req)) {
+      if (process.env.APP_ORIGIN
+        ? new URL(origin).origin !== new URL(process.env.APP_ORIGIN).origin
+        : new URL(origin).host !== getRequestHost(req)) {
         res.status(403).json({ error: "Cross-origin request denied" });
         return;
       }

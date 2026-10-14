@@ -1,25 +1,12 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
-
 const TODOIST_API_BASE = "https://api.todoist.com";
-
-function getClient() {
-  return new ReplitConnectors();
-}
 
 function todoistRequest(path: string): Promise<Response> {
   const apiToken = process.env.TODOIST_API_TOKEN?.trim();
-
-  if (apiToken) {
-    return fetch(`${TODOIST_API_BASE}${path}`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${apiToken}`,
-      },
-    });
-  }
-
-  return getClient().proxy("todoist", path, { method: "GET" });
+  if (!apiToken) throw new Error("TODOIST_API_TOKEN is not configured");
+  return fetch(`${TODOIST_API_BASE}${path}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${apiToken}` },
+    signal: AbortSignal.timeout(15_000),
+  });
 }
 
 export interface TodoistProject {
@@ -58,8 +45,7 @@ async function todoistGet<T>(path: string): Promise<T[]> {
     const url = cursor ? `${path}${path.includes("?") ? "&" : "?"}cursor=${encodeURIComponent(cursor)}` : path;
     const response = await todoistRequest(url);
     if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      throw new Error(`Todoist API error (${response.status}): ${body}`);
+      throw new Error(`Todoist API error (${response.status})`);
     }
     const data = await response.json() as PaginatedResponse<T>;
     allResults.push(...data.results);

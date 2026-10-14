@@ -5,3 +5,4 @@ export * from "./goals";
 export * from "./notes";
 export * from "./notes-images";
 export * from "./profile";
+export * from "./file-objects";

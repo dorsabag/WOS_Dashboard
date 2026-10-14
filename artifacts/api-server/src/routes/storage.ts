@@ -1,131 +1,42 @@
-import { Router, type IRouter, type Request, type Response } from "express";
-import { Readable } from "stream";
-import {
-  RequestUploadUrlBody,
-  RequestUploadUrlResponse,
-} from "@workspace/api-zod";
+import { Router, raw } from "express";
+import { Readable } from "node:stream";
+import { RequestUploadUrlBody, RequestUploadUrlResponse } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { ObjectPermission } from "../lib/objectAcl";
 
-const router: IRouter = Router();
-const objectStorageService = new ObjectStorageService();
-
-/**
- * POST /storage/uploads/request-url
- *
- * Request a presigned URL for file upload.
- * The client sends JSON metadata (name, size, contentType) — NOT the file.
- * Then uploads the file directly to the returned presigned URL.
- */
-router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
+// Mounted after requireOwner: upload requests, binary uploads, and reads are private.
+const router = Router();
+const storage = new ObjectStorageService();
+router.post("/storage/uploads/request-url", async (req, res) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Missing or invalid required fields" });
-    return;
-  }
-
+  if (!parsed.success) { res.status(400).json({ error: "Invalid upload metadata" }); return; }
+  const uploadPath = await storage.getObjectEntityUploadURL();
+  const uploadURL = new URL(uploadPath, process.env.APP_ORIGIN || `${req.protocol}://${req.get("host")}`).href;
+  res.json(RequestUploadUrlResponse.parse({ uploadURL, objectPath: storage.normalizeObjectEntityPath(uploadPath), metadata: parsed.data }));
+});
+router.put("/storage/uploads/:id", raw({ type: () => true, limit: process.env.MAX_UPLOAD_BYTES || "25mb" }), async (req, res) => {
+  if (!Buffer.isBuffer(req.body)) { res.status(400).json({ error: "Expected binary file" }); return; }
   try {
-    const { name, size, contentType } = parsed.data;
-
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
-
-    res.json(
-      RequestUploadUrlResponse.parse({
-        uploadURL,
-        objectPath,
-        metadata: { name, size, contentType },
-      }),
-    );
+    await storage.saveUpload(req.params.id, req.body, req.get("content-type")?.split(";")[0] || "application/octet-stream");
+    res.status(201).end();
   } catch (error) {
-    req.log.error({ err: error }, "Error generating upload URL");
-    res.status(500).json({ error: "Failed to generate upload URL" });
+    if (error instanceof ObjectNotFoundError) { res.status(400).json({ error: "Invalid upload id" }); return; }
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") { res.status(409).json({ error: "Object already exists" }); return; }
+    throw error;
   }
 });
-
-/**
- * GET /storage/public-objects/*
- *
- * Serve public assets from PUBLIC_OBJECT_SEARCH_PATHS.
- * These are unconditionally public — no authentication or ACL checks.
- * IMPORTANT: Always provide this endpoint when object storage is set up.
- */
-router.get("/storage/public-objects/*filePath", async (req: Request, res: Response) => {
+router.get(["/storage/objects/*objectPath", "/storage/public-objects/*objectPath"], async (req, res) => {
   try {
-    const raw = req.params.filePath;
-    const filePath = Array.isArray(raw) ? raw.join("/") : raw;
-    const file = await objectStorageService.searchPublicObject(filePath);
-    if (!file) {
-      res.status(404).json({ error: "File not found" });
-      return;
-    }
-
-    const response = await objectStorageService.downloadObject(file);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
+    const raw = req.params.objectPath;
+    const prefix = req.path.startsWith("/storage/public-objects/") ? "public/" : "";
+    const objectPath = `/objects/${prefix}${Array.isArray(raw) ? raw.join("/") : raw}`;
+    const response = await storage.downloadObject(await storage.getObjectEntityFile(objectPath));
+    response.headers.forEach((value, name) => res.setHeader(name, value));
+    const stream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
+    stream.on("error", () => res.destroy());
+    stream.pipe(res);
   } catch (error) {
-    req.log.error({ err: error }, "Error serving public object");
-    res.status(500).json({ error: "Failed to serve public object" });
+    if (error instanceof ObjectNotFoundError) { res.status(404).json({ error: "Object not found" }); return; }
+    throw error;
   }
 });
-
-/**
- * GET /storage/objects/*
- *
- * Serve object entities from PRIVATE_OBJECT_DIR.
- * These are served from a separate path from /public-objects and can optionally
- * be protected with authentication or ACL checks based on the use case.
- */
-router.get("/storage/objects/*path", async (req: Request, res: Response) => {
-  try {
-    const raw = req.params.path;
-    const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
-    const objectPath = `/objects/${wildcardPath}`;
-    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
-
-    // --- Protected route example (uncomment when using replit-auth) ---
-    // if (!req.isAuthenticated()) {
-    //   res.status(401).json({ error: "Unauthorized" });
-    //   return;
-    // }
-    // const canAccess = await objectStorageService.canAccessObjectEntity({
-    //   userId: req.user.id,
-    //   objectFile,
-    //   requestedPermission: ObjectPermission.READ,
-    // });
-    // if (!canAccess) {
-    //   res.status(403).json({ error: "Forbidden" });
-    //   return;
-    // }
-
-    const response = await objectStorageService.downloadObject(objectFile);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
-  } catch (error) {
-    if (error instanceof ObjectNotFoundError) {
-      req.log.warn({ err: error }, "Object not found");
-      res.status(404).json({ error: "Object not found" });
-      return;
-    }
-    req.log.error({ err: error }, "Error serving object");
-    res.status(500).json({ error: "Failed to serve object" });
-  }
-});
-
 export default router;
