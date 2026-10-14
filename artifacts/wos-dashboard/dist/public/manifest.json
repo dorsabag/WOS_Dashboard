@@ -1,0 +1,36 @@
+{
+  "name": "Whiteout Survival Dashboard",
+  "short_name": "WOS Dashboard",
+  "description": "Whiteout Survival game dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "icons": [
+    {
+      "src": "/icons/pwaicon.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/pwaicon.png",
+      "sizes": "167x167",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/pwaicon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/pwaicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/pwaicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
