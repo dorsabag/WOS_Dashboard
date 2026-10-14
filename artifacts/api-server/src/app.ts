@@ -31,12 +31,11 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-app.use(clerkMiddleware({
+// Authenticate API requests; SPA documents must load before browser sign-in initializes.
+app.use("/api", clerkMiddleware({
   publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
   ...(process.env.APP_ORIGIN ? { authorizedParties: [process.env.APP_ORIGIN] } : {}),
-}));
-
-app.use("/api", router);
+}), router);
 
 // One origin serves both API and SPA; private routes remain behind requireOwner.
 // Restored source assets can live on a volume, outside the public code repository.
